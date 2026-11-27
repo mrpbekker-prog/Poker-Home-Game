@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Покер: Сессия</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #12141a; color: #e8eaf0; min-height: 100vh;
+    padding-bottom: 40px;
+  }
+  header {
+    padding: 16px 16px 8px; font-size: 20px; font-weight: 700;
+    color: #7dd88a;
+  }
+  /* --- вкладки: всегда видны --- */
+  .tabs {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; gap: 6px;
+    padding: 8px 16px;
+    background: #12141a;
+    border-bottom: 1px solid #2a2e3a;
+  }
+  .tab-btn {
+    flex: 1; padding: 10px 8px; border: 1px solid #2a2e3a;
+    border-radius: 10px; background: #1a1e28; color: #aeb4c2;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .tab-btn.active { background: #2b5f3a; color: #ffffff; border-color: #3f8a55; }
+  main { padding: 14px 16px; }
+  .card {
+    background: #1a1e28; border: 1px solid #2a2e3a; border-radius: 14px;
+    padding: 14px; margin-bottom: 14px;
+  }
+  h2 { font-size: 16px; margin-bottom: 10px; color: #cfd4e0; }
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1; }
+  label { display: block; font-size: 12px; color: #9aa1b0; margin-bottom: 4px; }
+  input[type="text"], input[type="number"] {
+    width: 100%; padding: 10px; background: #12141a; border: 1px solid #333a4a;
+    border-radius: 8px; color: #e8eaf0; font-size: 15px;
+  }
+  input[type="text"]:focus, input[type="number"]:focus { outline: none; border-color: #3f8a55; }
+  button {
+    padding: 9px 14px; border: none; border-radius: 9px; cursor: pointer;
+    font-size: 14px; font-weight: 600; background: #2b5f3a; color: #fff;
+  }
+  button.ghost { background: #262b38; color: #c3c9d6; }
+  button.danger { background: #6e2430; color: #ffd7dd; }
+  button:active { transform: scale(0.97); }
+  .btn-sm { padding: 6px 10px; font-size: 14px; min-width: 34px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 12px; color: #9aa1b0; text-align: left; padding: 6px 4px; border-bottom: 1px solid #2a2e3a; }
+  td { padding: 8px 4px; border-bottom: 1px solid #22262f; font-size: 15px; vertical-align: middle; }
+  td.num { text-align: center; white-space: nowrap; }
+  .cnt { display: inline-block; min-width: 26px; text-align: center; font-weight: 700; }
+  .profit-pos { color: #6fe08a; font-weight: 700; }
+  .profit-neg { color: #ff7a8a; font-weight: 700; }
+  .profit-zero { color: #aeb4c2; font-weight: 700; }
+  .empty { color: #8b92a3; font-size: 14px; text-align: center; padding: 14px 0; }
+  .total-line { margin-top: 10px; font-size: 14px; color: #c3c9d6; }
+  .warn {
+    margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+    background: #4a3b12; border: 1px solid #8a6d1f; color: #ffd97a;
+    font-size: 13px; line-height: 1.4;
+  }
+  .actions { display: flex; gap: 10px; margin-top: 4px; }
+  .actions button { flex: 1; padding: 12px; }
+  .hidden { display: none !important; }
+  .sess-card { border: 1px solid #2a2e3a; border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #171b24; }
+  .sess-head { font-weight: 700; margin-bottom: 8px; font-size: 15px; }
+  .sess-meta { font-size: 12px; color: #9aa1b0; margin-bottom: 8px; }
+  .sess-line { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; }
+  .stat-bar { display: flex; justify-content: space-between; font-size: 13px; color: #9aa1b0; margin-bottom: 6px; }
+  .tag-dot { width: 16px; height: 16px; border-radius: 50%; border: 1.5px dashed #5a6172; background: transparent; padding: 0; flex: 0 0 auto; cursor: pointer; }
+  .tag-dot:active { transform: scale(0.9); }
+  .tag-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #3a4150; padding: 0; min-width: 0; }
+  .tag-swatch-none { background: transparent; border-style: dashed; }
+  #tagPalette { position: absolute; z-index: 200; background: #1a1e28; border: 1px solid #2a2e3a; border-radius: 10px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1e2430">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<header>🃏 Покер</header>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tabBtn0" onclick="switchTab(0)">Сессия</button>
+  <button class="tab-btn" id="tabBtn1" onclick="switchTab(1)">Статистика</button>
+  <button class="tab-btn" id="tabBtn2" onclick="switchTab(2)">История</button>
+</div>
+
+<main>
+  <!-- ================= ВКЛАДКА 1: СЕССИЯ ================= -->
+  <section id="tab0">
+    <div class="card">
+      <h2>Настройки входа</h2>
+      <div class="row">
+        <div class="field">
+          <label>Стоимость входа, ₽</label>
+          <input type="number" id="entryCost" min="0" step="1" oninput="onSettings()">
+        </div>
+        <div class="field">
+          <label>Фишек за вход</label>
+          <input type="number" id="chipsPerBuyin" min="1" step="1" oninput="onSettings()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Игроки</h2>
+      <div class="row" style="margin-bottom:12px">
+        <div class="field">
+          <input type="text" id="newName" placeholder="Имя игрока" onkeydown="if(event.key==='Enter')addPlayer()">
+        </div>
+        <button onclick="addPlayer()">+ Добавить</button>
+      </div>
+      <div id="playersWrap"></div>
+      <div class="total-line" id="totalLine"></div>
+      <div id="warnBox"></div>
+    </div>
+
+    <div class="actions">
+      <button class="ghost" onclick="calcSettlement()">Расчёт</button>
+      <button onclick="finishSession()">Завершить сессию</button>
+    </div>
+    <div id="calcBox" style="display:none">
+      <div class="card" id="calcWrap"></div>
+    </div>
+  </section>
+
+  <!-- ================= ВКЛАДКА 2: СТАТИСТИКА ================= -->
+  <section id="tab1" class="hidden">
+    <div class="card">
+      <h2>Общая статистика</h2>
+      <div id="statsWrap"></div>
+    </div>
+    <div class="card">
+      <h2>Данные этого устройства</h2>
+      <div style="opacity:.7;font-size:13px;line-height:1.45;margin-bottom:10px">История хранится только в этом браузере. «Экспорт» сохранит её в файл — перешлите файл себе на другое устройство (например, в «Избранное» мессенджера) и там нажмите «Импорт». Дубликаты отсеются автоматически. Данные никуда не уходят в интернет.</div>
+      <div class="actions">
+        <button onclick="localExport()">Экспорт в файл</button>
+        <button class="ghost" onclick="document.getElementById('importFile').click()">Импорт из файла</button>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="localImportFile(this)">
+      </div>
+      <div id="localStatus" style="margin-top:4px;font-size:14px;min-height:18px"></div>
+    </div>
+    <div class="card">
+      <h2>Синхронизация</h2>
+      <div style="opacity:.7;font-size:13px;line-height:1.45;margin-bottom:10px">Общая статистика хранится в файле data.json в репозитории. Читать её может любой, записывать — только владелец с токеном. Токен хранится только в этом браузере и никуда не отправляется, кроме GitHub.</div>
+      <div class="row">
+        <div class="field">
+          <label>Владелец репозитория</label>
+          <input type="text" id="syncOwner" placeholder="mrpbekker-prog">
+        </div>
+        <div class="field">
+          <label>Репозиторий</label>
+          <input type="text" id="syncRepo" placeholder="Poker-Home-Game">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Токен GitHub (Content: Read and write)</label>
+          <input type="password" id="syncToken" placeholder="github_pat_… или ghp_…">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="syncDownload()">Загрузить общую статистику</button>
+        <button onclick="syncUpload()">Отправить сессии на сервер</button>
+      </div>
+      <div id="syncStatus" style="margin-top:4px;font-size:14px;min-height:18px"></div>
+    </div>
+    <div class="actions">
+      <button class="danger" onclick="clearStats()">Очистить статистику</button>
+    </div>
+  </section>
+
+  <!-- ================= ВКЛАДКА 3: ИСТОРИЯ ================= -->
+  <section id="tab2" class="hidden">
+    <div class="card">
+      <h2>История сессий</h2>
+      <div id="historyWrap"></div>
+    </div>
+  </section>
+</main>
+
+<div id="tagPalette" style="display:none" onclick="event.stopPropagation()"></div>
+
+<script>
+// ---------- хранение ----------
+const LS = {
+  settings: 'pk_settings_v1',
+  players: 'pk_players_v1',
+  stats: 'pk_stats_v1',
+  history: 'pk_history_v1'
+};
+let settings = { cost: 500, chips: 1500 };
+let players = [];      // {name, buyins, chips, chipsManual}
+let stats = {};        // name -> {profit, buyins, invested}
+let history = [];      // [{ts, cost, chips, rows:[{name,buyins,chips,profit}]}]
+
+function load() {
+  try { settings = Object.assign(settings, JSON.parse(localStorage.getItem(LS.settings)) || {}); } catch(e){}
+  try { players = JSON.parse(localStorage.getItem(LS.players)) || []; } catch(e){ players = []; }
+  try { stats = JSON.parse(localStorage.getItem(LS.stats)) || {}; } catch(e){ stats = {}; }
+  try { history = JSON.parse(localStorage.getItem(LS.history)) || []; } catch(e){ history = []; }
+}
+function saveAll() {
+  localStorage.setItem(LS.settings, JSON.stringify(settings));
+  localStorage.setItem(LS.players, JSON.stringify(players));
+  localStorage.setItem(LS.stats, JSON.stringify(stats));
+  localStorage.setItem(LS.history, JSON.stringify(history));
+}
+
+// ---------- расчёты ----------
+function chipPrice() {
+  const c = settings.cost || 0, n = settings.chips || 0;
+  return n > 0 ? c / n : 0;
+}
+function profitOf(p) {
+  return p.chips * chipPrice() - p.buyins * (settings.cost || 0);
+}
+function fmtProfit(v) {
+  const r = Math.round(v) || 0;
+  const cls = r > 0 ? 'profit-pos' : (r < 0 ? 'profit-neg' : 'profit-zero');
+  return '<span class="' + cls + '">' + (r > 0 ? '+' : '') + r.toLocaleString('ru-RU') + ' ₽</span>';
+}
+function fmtMoney(v) { return Math.round(v).toLocaleString('ru-RU') + ' ₽'; }
+
+// ---------- вкладки ----------
+function switchTab(i) {
+  for (let k = 0; k < 3; k++) {
+    document.getElementById('tab' + k).classList.toggle('hidden', k !== i);
+    document.getElementById('tabBtn' + k).classList.toggle('active', k === i);
+  }
+  if (i === 1) renderStats();
+  if (i === 2) renderHistory();
+}
+
+// ---------- игроки ----------
+function addPlayer() {
+  const inp = document.getElementById('newName');
+  const name = inp.value.trim();
+  if (!name) { inp.focus(); return; }
+  if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) { inp.focus(); return; }
+  players.push({ name: name, buyins: 0, chips: 0, chipsManual: false, color: '' });
+  inp.value = ''; inp.focus();
+  saveAll(); rebuildTable();
+}
+function removePlayer(idx) {
+  players.splice(idx, 1);
+  saveAll(); rebuildTable();
+}
+function incBuyin(idx) {
+  players[idx].buyins = (players[idx].buyins || 0) + 1;
+  saveAll(); updateRow(idx); updateFooter();
+}
+function decBuyin(idx) {
+  players[idx].buyins = Math.max(0, (players[idx].buyins || 0) - 1);
+  saveAll(); updateRow(idx); updateFooter();
+}
+function setChips(idx, val) {
+  players[idx].chipsManual = true;
+  const n = parseInt(String(val).replace(/[^0-9-]/g, ''), 10);
+  players[idx].chips = isNaN(n) ? 0 : Math.max(0, n);
+  saveAll(); updateRow(idx); updateFooter();
+}
+function setChipsEditing(idx) { players[idx].chipsManual = true; }
+
+// ---------- цветовые теги ----------
+const TAG_COLORS = ['#e05555', '#e08a3c', '#e0c93c', '#5fc46a', '#3fc0c9', '#4a7de0', '#a05ce0', '#e055a5'];
+
+function openTagPalette(i, ev) {
+  ev.stopPropagation();
+  const pal = document.getElementById('tagPalette');
+  const dot = document.getElementById('tagdot' + i);
+  if (pal.dataset.openFor === String(i) && pal.style.display === 'block') { closeTagPalette(); return; }
+  let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">';
+  TAG_COLORS.forEach(col => {
+    html += '<button class="tag-swatch" style="background:' + col + '" onclick="selectTag(' + i + ',\'' + col + '\')"></button>';
+  });
+  html += '<button class="tag-swatch tag-swatch-none" title="Без тега" onclick="selectTag(' + i + ',\'\')"></button></div>';
+  pal.innerHTML = html;
+  const r = dot.getBoundingClientRect();
+  pal.style.top = (r.bottom + window.scrollY + 6) + 'px';
+  pal.style.left = Math.max(8, r.left + window.scrollX) + 'px';
+  pal.dataset.openFor = String(i);
+  pal.style.display = 'block';
+}
+function selectTag(i, color) {
+  players[i].color = color || '';
+  saveAll();
+  const dot = document.getElementById('tagdot' + i);
+  if (dot) {
+    if (players[i].color) { dot.style.background = players[i].color; dot.style.borderStyle = 'solid'; }
+    else { dot.style.background = 'transparent'; dot.style.borderStyle = 'dashed'; }
+  }
+  closeTagPalette();
+}
+function closeTagPalette() {
+  const pal = document.getElementById('tagPalette');
+  if (pal) { pal.style.display = 'none'; pal.dataset.openFor = ''; }
+}
+
+// точечное обновление строки: не перерисовываем поле фишек, чтобы не терять фокус
+function updateRow(idx) {
+  const p = players[idx];
+  document.getElementById('cnt' + idx).textContent = p.buyins || 0;
+  document.getElementById('pf' + idx).innerHTML = fmtProfit(profitOf(p));
+}
+function updateFooter() {
+  const totalChips = players.reduce((s, p) => s + (p.chips || 0), 0);
+  document.getElementById('totalLine').innerHTML = 'Итого в игре: <b>' + totalChips.toLocaleString('ru-RU') + '</b> фишек';
+  // предупреждение о расхождении
+  const bought = players.reduce((s, p) => s + (p.buyins || 0), 0) * (settings.chips || 0);
+  const box = document.getElementById('warnBox');
+  if (players.length && bought !== totalChips && (bought > 0 || totalChips > 0)) {
+    let msg;
+    if (totalChips > bought) msg = 'на столе фишек больше, чем куплено. Выдано ' +
+      bought.toLocaleString('ru-RU') + ', у игроков ' + totalChips.toLocaleString('ru-RU') +
+      ' (лишних: ' + (totalChips - bought).toLocaleString('ru-RU') + ')';
+    else msg = 'куплено фишек больше, чем на столе. Куплено ' +
+      bought.toLocaleString('ru-RU') + ', у игроков ' + totalChips.toLocaleString('ru-RU') +
+      ' (не хватает: ' + (bought - totalChips).toLocaleString('ru-RU') + ')';
+    box.innerHTML = '<div class="warn">⚠️ Расхождение: ' + msg + '.</div>';
+  } else {
+    box.innerHTML = '';
+  }
+}
+
+function rebuildTable() {
+  const wrap = document.getElementById('playersWrap');
+  if (!players.length) {
+    wrap.innerHTML = '<div class="empty">Добавьте игроков, чтобы начать</div>';
+  } else {
+    let html = '<table><thead><tr>' +
+      '<th>Игрок</th><th style="text-align:center">Входы</th><th style="text-align:center">Фишки</th><th style="text-align:right">Профит</th></tr></thead><tbody>';
+    players.forEach((p, i) => {
+      html += '<tr>' +
+        '<td><div style="display:flex;align-items:center;gap:6px">' +
+          '<button class="tag-dot" id="tagdot' + i + '" style="' + (p.color ? 'background:' + p.color + ';border-style:solid' : 'background:transparent;border-style:dashed') + '" onclick="openTagPalette(' + i + ', event)"></button>' + esc(p.name) +
+          '<button class="ghost btn-sm" onclick="removePlayer(' + i + ')" title="Удалить">✕</button></div></td>' +
+        '<td class="num"><button class="ghost btn-sm" onclick="decBuyin(' + i + ')">−</button>' +
+          '<span class="cnt" id="cnt' + i + '">' + (p.buyins || 0) + '</span>' +
+          '<button class="ghost btn-sm" onclick="incBuyin(' + i + ')">+</button></td>' +
+        '<td class="num"><input type="number" min="0" step="1" style="width:90px;text-align:center;padding:7px 4px"' +
+          ' value="' + (p.chips || 0) + '"' +
+          ' oninput="setChipsEditing(' + i + ')" onchange="setChips(' + i + ', this.value)"></td>' +
+        '<td class="num" id="pf' + i + '">' + fmtProfit(profitOf(p)) + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+  updateFooter();
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ---------- настройки ----------
+function onSettings() {
+  settings.cost = Math.max(0, parseInt(document.getElementById('entryCost').value, 10) || 0);
+  settings.chips = Math.max(0, parseInt(document.getElementById('chipsPerBuyin').value, 10) || 0);
+  saveAll();
+  players.forEach((p, i) => updateRow(i));
+  updateFooter();
+}
+
+// ---------- сессии ----------
+function finishSession() {
+  const active = players.filter(p => (p.buyins || 0) > 0 || (p.chips || 0) > 0);
+  if (!active.length) { switchTab(2); renderHistory(); return; }
+  const rec = {
+    ts: Date.now(),
+    cost: settings.cost || 0,
+    chips: settings.chips || 0,
+    rows: active.map(p => {
+      const pr = Math.round(profitOf(p));
+      const invested = (p.buyins || 0) * (settings.cost || 0);
+      if (!stats[p.name]) stats[p.name] = { profit: 0, buyins: 0, invested: 0 };
+      stats[p.name].profit += pr;
+      stats[p.name].buyins += (p.buyins || 0);
+      stats[p.name].invested += invested;
+      return { name: p.name, buyins: p.buyins || 0, chips: p.chips || 0, profit: pr };
+    })
+  };
+  // --- начисление баллов за сессию ---
+  const plusRows = rec.rows.filter(r => r.profit > 0).sort((a, b) => b.profit - a.profit);
+  const minusRows = rec.rows.filter(r => r.profit < 0).sort((a, b) => b.profit - a.profit);
+  plusRows.forEach((r, idx) => {
+    if (!stats[r.name].pts) stats[r.name].pts = 0;
+    stats[r.name].pts += (idx < 5 ? 5 - idx : 0);
+  });
+  minusRows.forEach((r, idx) => {
+    if (!stats[r.name].pts) stats[r.name].pts = 0;
+    stats[r.name].pts -= (idx < 5 ? idx + 1 : 0);
+  });
+  // --- конец начисления баллов ---
+  history.unshift(rec);
+  players.forEach(p => { p.buyins = 0; p.chips = 0; p.chipsManual = false; });
+  saveAll();
+  rebuildTable();
+  switchTab(1); renderStats();
+}
+function groupName(g) {
+  const dot = g.color
+    ? '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + g.color + ';margin-right:6px;vertical-align:middle"></span>'
+    : '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:transparent;border:1px dashed #888;margin-right:6px;vertical-align:middle"></span>';
+  return dot + g.names.join(', ');
+}
+function calcSettlement() {
+  const box = document.getElementById('calcBox');
+  const wrap = document.getElementById('calcWrap');
+  if (box.style.display === 'block') { box.style.display = 'none'; return; }
+  const active = players.filter(p => (p.buyins || 0) > 0 || (p.chips || 0) > 0);
+  if (!active.length) {
+    wrap.innerHTML = '<div style="opacity:.7">Нет участников для расчёта</div>';
+    box.style.display = 'block'; return;
+  }
+  const groups = {};
+  const order = [];
+  const pkey = new Map();
+  active.forEach((p, pi) => {
+    // с тегом — общая группа по цвету; без тега — каждый сам по себе
+    const key = p.color || '\u0001solo' + pi;
+    pkey.set(p, key);
+    if (!groups[key]) { groups[key] = { color: p.color || '', solo: !p.color, names: [], profit: 0 }; order.push(key); }
+    groups[key].names.push(p.name);
+    groups[key].profit += Math.round(profitOf(p));
+  });
+  const list = order.map(k => groups[k]);
+  let html = '<div style="font-weight:700;margin-bottom:8px">Группы</div>';
+  list.forEach(g => {
+    html += '<div style="display:flex;justify-content:space-between;padding:4px 0">' +
+      '<span>' + groupName(g) + '</span>' +
+      '<span>' + fmtProfit(g.profit) + '</span></div>';
+  });
+  // Корректировка расхождения фишек (в фишках, кратно 5 фишкам)
+  const chipsOnTable = active.reduce((acc, p) => acc + (p.chips || 0), 0);
+  const chipsBought = active.reduce((acc, p) => acc + (p.buyins || 0), 0) * (settings.chips || 0);
+  const discChips = chipsOnTable - chipsBought;
+  let adjustInfo = '';
+  if (discChips !== 0) {
+    const profitChips = p => (p.chips || 0) - (p.buyins || 0) * (settings.chips || 0);
+    const winners = active.filter(p => profitChips(p) > 0)
+      .sort((a, b) => profitChips(b) - profitChips(a));
+    if (winners.length) {
+      const D = Math.abs(discChips);
+      const n = winners.length;
+      const base = Math.floor(D / (5 * n)) * 5;
+      let rem = D - base * n;
+      const shares = winners.map(() => base);
+      const k = Math.floor(rem / 5);
+      for (let i = 0; i < k; i++) shares[i] += 5;
+      rem -= k * 5;
+      let tailNote = '';
+      if (rem > 0) { shares[0] += rem; tailNote = '<br>Хвост ' + rem + ' ф. — крупнейшему победителю'; }
+      const sign = discChips > 0 ? -1 : 1;
+      let clipped = 0;
+      winners.forEach((p, i) => {
+        let s = shares[i];
+        if (sign < 0 && s > (p.chips || 0)) { clipped += s - (p.chips || 0); s = p.chips || 0; }
+        p.adjChips = sign * s;
+        p.chips = (p.chips || 0) + p.adjChips;
+        const g = groups[pkey.get(p)];
+        if (g) g.adjSum = (g.adjSum || 0) + p.adjChips * chipPrice();
+      });
+      if (clipped) tailNote += '<br>У части выигравших не хватило фишек на списание — ' + clipped + ' ф. осталось нераспределённым';
+      rebuildTable(); saveAll();
+      list.forEach(g => { if (g.adjSum) g.profit += Math.round(g.adjSum); });
+      const verb = discChips > 0 ? 'Лишние фишки на столе' : 'Не хватает фишек';
+      const act = discChips > 0 ? 'списано у выигравших' : 'добавлено выигравшим';
+      adjustInfo = '<div style="background:#33290f;border:1px solid #8a762e;color:#ffd97a;padding:8px 10px;border-radius:8px;margin:10px 0">' +
+        verb + ': ' + D + ' ф. — ' + act + ' (кратно 5 фишкам):<br>' +
+        winners.map((p, i) => '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;background:' + (p.color || 'transparent') + (p.color ? '' : ';border:1px dashed #888') + '"></span>' + esc(p.name) + ': ' + (p.adjChips > 0 ? '+' : '') + p.adjChips + ' ф. (' + fmtProfit(p.adjChips * chipPrice()) + ')').join('<br>') +
+        tailNote + '</div>';
+    }
+  }
+  const debt = list.filter(g => g.profit < 0).sort((a, b) => a.profit - b.profit).map(g => ({ ...g, rest: -g.profit }));
+  const cred = list.filter(g => g.profit > 0).sort((a, b) => b.profit - a.profit).map(g => ({ ...g, rest: g.profit }));
+  const pays = [];
+  let di = 0, ci = 0;
+  while (di < debt.length && ci < cred.length) {
+    const amt = Math.min(debt[di].rest, cred[ci].rest);
+    if (amt > 0) pays.push({ from: debt[di], to: cred[ci], amt: amt });
+    debt[di].rest -= amt;
+    cred[ci].rest -= amt;
+    if (debt[di].rest <= 0) di++;
+    if (cred[ci].rest <= 0) ci++;
+  }
+  const leftoverDebt = debt.slice(di).reduce((s, g) => s + g.rest, 0);
+  const leftoverCred = cred.slice(ci).reduce((s, g) => s + g.rest, 0);
+  html += adjustInfo;
+  html += '<div style="font-weight:700;margin:14px 0 8px">Кто кому переводит</div>';
+  if (!pays.length) {
+    html += '<div style="opacity:.7">Всё сходится, никто никому ничего не должен</div>';
+  } else {
+    pays.forEach(t => {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">' +
+        '<span>' + groupName(t.from) + ' <span style="color:#7dd8ff">&rarr;</span> ' + groupName(t.to) + '</span>' +
+        '<span style="font-weight:700">' + fmtMoney(t.amt) + '</span></div>';
+    });
+    const leftover = leftoverDebt + leftoverCred;
+    if (leftover > 0) html += '<div style="opacity:.7;margin-top:6px">Нераспределённый остаток: ' + fmtMoney(leftover) + ' — сумма фишек не сходится с входами, проверьте цифры</div>';
+  }
+  wrap.innerHTML = html;
+  box.style.display = 'block';
+}
+
+function clearStats() {
+  if (!confirm('Удалить всю статистику и историю сессий?')) return;
+  stats = {}; history = [];
+  saveAll(); renderStats(); renderHistory();
+}
+
+// ---------- статистика ----------
+function renderStats() {
+  const wrap = document.getElementById('statsWrap');
+  const names = Object.keys(stats);
+  // текущая незавершённая сессия — «на лету»
+  const live = players.filter(p => (p.buyins || 0) > 0 || (p.chips || 0) > 0);
+  const rowsMap = {};
+  names.forEach(n => {
+    rowsMap[n] = {
+      profit: stats[n].profit,
+      buyins: stats[n].buyins,
+      invested: stats[n].invested,
+      pts: stats[n].pts || 0
+    };
+  });
+  live.forEach(p => {
+    if (!rowsMap[p.name]) rowsMap[p.name] = { profit: 0, buyins: 0, invested: 0 };
+    rowsMap[p.name].profit += Math.round(profitOf(p));
+    rowsMap[p.name].buyins += (p.buyins || 0);
+    rowsMap[p.name].invested += (p.buyins || 0) * (settings.cost || 0);
+  });
+  const rows = Object.keys(rowsMap).map(n => ({ name: n, ...rowsMap[n] }))
+    .sort((a, b) => ((b.pts || 0) - (a.pts || 0)) || (b.profit - a.profit));
+  if (!rows.length) { wrap.innerHTML = '<div class="empty">Пока нет завершённых сессий</div>'; return; }
+  let html = '<table><thead><tr>' +
+    '<th style="text-align:center">Баллы</th><th>Игрок</th><th style="text-align:right">Профит</th><th style="text-align:center">Входы</th><th style="text-align:right">ROI</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    const roi = r.invested > 0 ? (r.profit / r.invested * 100) : 0;
+    const roiStr = (roi > 0 ? '+' : '') + Math.round(roi) + '%';
+    html += '<tr>' +
+      '<td><input type="number" style="width:52px;text-align:center;padding:6px 2px" title="Баллы игрока" value="' + (r.pts || 0) + '" onchange="setPts(\'' + esc(r.name).replace(/'/g, "\\'") + '\', this.value)"></td>' +
+      '<td>' + esc(r.name) + '</td>' +
+      '<td class="num">' + fmtMoney(r.profit) + '</td>' +
+      '<td class="num">' + r.buyins + '</td>' +
+      '<td class="num"><span class="' + (roi > 0 ? 'profit-pos' : (roi < 0 ? 'profit-neg' : 'profit-zero')) + '">' + roiStr + '</span></td></tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function setPts(name, val) {
+  if (!stats[name]) stats[name] = { profit: 0, buyins: 0, invested: 0 };
+  const v = parseInt(val, 10);
+  stats[name].pts = isNaN(v) ? 0 : v;
+  saveAll();
+  renderStats();
+}
+
+// ---------- история ----------
+function renderHistory() {
+  const wrap = document.getElementById('historyWrap');
+  if (!history.length) { wrap.innerHTML = '<div class="empty">Сессий пока нет</div>'; return; }
+  const dt = new Date().toLocaleDateString('ru-RU');
+  let html = '';
+  history.forEach(h => {
+    const d = new Date(h.ts);
+    html += '<div class="sess-card">' +
+      '<div class="sess-head">' + d.toLocaleDateString('ru-RU') + ', ' + d.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) + '</div>' +
+      '<div class="sess-meta">Вход: ' + fmtMoney(h.cost) + ' · ' + h.chips.toLocaleString('ru-RU') + ' фишек за вход</div>';
+    h.rows.slice().sort((a, b) => b.profit - a.profit).forEach(r => {
+      html += '<div class="sess-line"><span>' + esc(r.name) + ' · входов: ' + r.buyins + ' · фишек: ' + r.chips.toLocaleString('ru-RU') + '</span><span>' + fmtProfit(r.profit) + '</span></div>';
+    });
+    html += '</div>';
+  });
+  wrap.innerHTML = html;
+}
+
+
+// ---------- синхронизация через GitHub ----------
+const SYNC_LS = 'pk_sync_v1';
+function syncCfg(){ try { return JSON.parse(localStorage.getItem(SYNC_LS)) || {} } catch(e){ return {} } }
+function syncSaveCfg(c){ localStorage.setItem(SYNC_LS, JSON.stringify(c)); }
+function ghOwner(){
+  if (location.hostname.endsWith('github.io')) return location.hostname.split('.')[0];
+  return (document.getElementById('syncOwner').value || '').trim();
+}
+function ghRepo(){
+  if (location.hostname.endsWith('github.io')) {
+    const parts = location.pathname.split('/').filter(Boolean);
+    if (parts.length) return parts[0];
+  }
+  return (document.getElementById('syncRepo').value || '').trim();
+}
+function b64encodeUtf8(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+function b64decodeUtf8(b64){
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+async function ghGet(path, token){
+  const headers = { Accept: 'application/vnd.github+json' };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const r = await fetch('https://api.github.com' + path, { headers });
+  if (!r.ok) throw new Error('GitHub: HTTP ' + r.status);
+  return r.json();
+}
+async function fetchRemoteData(owner, repo, token){
+  const path = '/repos/' + owner + '/' + repo + '/contents/data.json';
+  try {
+    const j = await ghGet(path, token);
+    return JSON.parse(b64decodeUtf8(j.content));
+  } catch(e) {
+    if (String(e.message).indexOf('404') !== -1) return null; // файла ещё нет
+    throw e;
+  }
+}
+async function ghPutData(owner, repo, token, obj){
+  const path = '/repos/' + owner + '/' + repo + '/contents/data.json';
+  const cur = await ghGet(path, token); // нужен свежий sha
+  const body = {
+    message: 'poker: обновление data.json',
+    content: b64encodeUtf8(JSON.stringify(obj, null, 2)),
+    sha: cur.sha
+  };
+  const r = await fetch('https://api.github.com' + path, {
+    method: 'PUT',
+    headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('GitHub: HTTP ' + r.status + ' при записи');
+  return r.json();
+}
+function sessionKey(s){
+  return s.ts + '|' + s.rows.reduce((a, r) => a + (r.profit || 0), 0);
+}
+function mergeHistory(a, b){
+  const seen = {}; const out = [];
+  a.concat(b).slice().sort((x, y) => (y.ts || 0) - (x.ts || 0)).forEach(s => {
+    const k = sessionKey(s);
+    if (seen[k]) return;
+    seen[k] = 1;
+    out.push(s);
+  });
+  return out;
+}
+function recomputeStats(sessions){
+  const st = {};
+  sessions.forEach(s => {
+    const cost = s.cost || 0;
+    const rows = (s.rows || []).slice().sort((x, y) => y.profit - x.profit);
+    const plus = rows.filter(r => r.profit > 0);
+    const minus = rows.filter(r => r.profit < 0);
+    rows.forEach(r => {
+      if (!st[r.name]) st[r.name] = { profit: 0, buyins: 0, invested: 0, pts: 0 };
+      st[r.name].profit += r.profit;
+      st[r.name].buyins += (r.buyins || 0);
+      st[r.name].invested += (r.buyins || 0) * cost;
+    });
+    plus.forEach((r, i) => { if (i < 5) st[r.name].pts += 5 - i; });
+    minus.forEach((r, i) => { if (i < 5) st[r.name].pts -= i + 1; });
+  });
+  return st;
+}
+function syncInputs(){
+  return {
+    owner: ghOwner(),
+    repo: ghRepo(),
+    token: (document.getElementById('syncToken').value || '').trim()
+  };
+}
+function syncStatus(msg, ok){
+  const el = document.getElementById('syncStatus');
+  el.textContent = msg;
+  el.style.color = ok === false ? '#e57373' : (ok === true ? '#81c784' : '');
+}
+function initSync(){
+  document.getElementById('syncOwner').value = ghOwner();
+  document.getElementById('syncRepo').value = ghRepo();
+  document.getElementById('syncToken').value = syncCfg().token || '';
+}
+function localStatus(msg, ok){
+  const el = document.getElementById('localStatus');
+  el.textContent = msg;
+  el.style.color = ok === false ? '#e57373' : (ok === true ? '#81c784' : '');
+}
+function localExport(){
+  const data = {
+    app: 'PokerHomeGame',
+    v: 1,
+    exported: new Date().toISOString(),
+    settings: settings,
+    players: players,
+    stats: stats,
+    history: history
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const name = 'poker-data-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  localStatus('Файл сохранён: ' + name, true);
+}
+function localImportFile(inp){
+  const file = inp.files && inp.files[0];
+  inp.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); }
+    catch (e) { localStatus('Не удалось прочитать файл — это не JSON', false); return; }
+    if (!data || (data.app && data.app !== 'PokerHomeGame')) { localStatus('Похоже, это файл другого приложения', false); return; }
+    const imp = Array.isArray(data.history) ? data.history.filter(s => s && Array.isArray(s.rows)) : [];
+    if (!imp.length && !Array.isArray(data.players)) { localStatus('В файле нет сессий и игроков', false); return; }
+    // баллы игроков, которых импорт не затронул, сохраняем
+    const oldCnt = {};
+    history.forEach(s => (s.rows || []).forEach(r => oldCnt[r.name] = (oldCnt[r.name] || 0) + 1));
+    const oldPts = {};
+    Object.keys(stats).forEach(n => oldPts[n] = stats[n] ? (stats[n].pts || 0) : 0);
+    const before = history.length;
+    history = mergeHistory(history, imp);
+    const added = history.length - before;
+    // настройки
+    if (data.settings && typeof data.settings === 'object') {
+      if (Number.isFinite(data.settings.cost)) settings.cost = data.settings.cost;
+      if (Number.isFinite(data.settings.chips)) settings.chips = data.settings.chips;
+    }
+    // игроки: новых добавляем без бай-инов, текущую сессию не трогаем
+    const byName = {};
+    players.forEach(p => byName[(p.name || '').toLowerCase()] = p);
+    (Array.isArray(data.players) ? data.players : []).forEach(p => {
+      if (!p || !p.name) return;
+      const key = p.name.toLowerCase();
+      if (byName[key]) return;
+      const np = { name: p.name, buyins: 0, chips: 0, chipsManual: false, color: p.color || '' };
+      players.push(np); byName[key] = np;
+    });
+    stats = recomputeStats(history);
+    const newCnt = {};
+    history.forEach(s => (s.rows || []).forEach(r => newCnt[r.name] = (newCnt[r.name] || 0) + 1));
+    Object.keys(oldPts).forEach(n => {
+      if ((newCnt[n] || 0) === (oldCnt[n] || 0) && st[n]) st[n].pts = oldPts[n];
+    });
+    saveAll();
+    document.getElementById('entryCost').value = settings.cost;
+    document.getElementById('chipsPerBuyin').value = settings.chips;
+    rebuildTable();
+    renderStats();
+    renderHistory();
+    localStatus(added > 0
+      ? 'Импортировано: добавлено сессий ' + added + ', всего стало ' + history.length + '.'
+      : 'Новых сессий не найдено — всё уже есть в истории этого устройства.', true);
+  };
+  reader.readAsText(file);
+}
+async function syncDownload(){
+  const { owner, repo, token } = syncInputs();
+  if (!owner || !repo) { syncStatus('Укажи владельца и репозиторий', false); return; }
+  syncSaveCfg({ owner, repo, token });
+  syncStatus('Загрузка…', null);
+  try {
+    const remote = await fetchRemoteData(owner, repo, token);
+    if (!remote || !remote.sessions || !remote.sessions.length) {
+      syncStatus('На сервере пока нет данных — нажми «Отправить», чтобы выложить первые сессии.', true);
+      return;
+    }
+    history = mergeHistory(history, remote.sessions);
+    stats = recomputeStats(history);
+    saveAll(); renderStats(); renderHistory();
+    syncStatus('Загружено: на сервере ' + remote.sessions.length + ' сессий, в статистике теперь ' + history.length + '.', true);
+  } catch(e) { syncStatus('Ошибка загрузки: ' + e.message, false); }
+}
+async function syncUpload(){
+  const { owner, repo, token } = syncInputs();
+  if (!owner || !repo) { syncStatus('Укажи владельца и репозиторий', false); return; }
+  if (!token) { syncStatus('Для записи нужен токен', false); return; }
+  syncSaveCfg({ owner, repo, token });
+  syncStatus('Отправка…', null);
+  try {
+    await ghGet('/user', token); // проверка токена
+    const remote = await fetchRemoteData(owner, repo, token);
+    history = mergeHistory(history, remote ? (remote.sessions || []) : []);
+    stats = recomputeStats(history);
+    await ghPutData(owner, repo, token, { sessions: history, updated: Date.now() });
+    saveAll(); renderStats(); renderHistory();
+    syncStatus('Готово: на сервере теперь ' + history.length + ' сессий.', true);
+  } catch(e) { syncStatus('Ошибка отправки: ' + e.message, false); }
+}
+
+// ---------- старт ----------
+load();
+document.getElementById('entryCost').value = settings.cost || '';
+document.getElementById('chipsPerBuyin').value = settings.chips || '';
+rebuildTable();
+initSync();
+document.addEventListener('click', closeTagPalette);
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+</script>
+</body>
+</html>
